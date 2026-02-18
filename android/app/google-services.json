@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "774565500601",
+    "project_id": "mycity-events",
+    "storage_bucket": "mycity-events.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:774565500601:android:e1da137c4fa9c21fe2ed68",
+        "android_client_info": {
+          "package_name": "com.example.mycity_events"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBOpBzk8ooVWgr0fxx7YQuva4QedUr-k04"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
