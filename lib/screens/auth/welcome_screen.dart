@@ -18,13 +18,13 @@ class WelcomeScreen extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // ✅ Logo Circle (مثل الصورة)
+                //  Logo Circle (مثل الصورة)
                 SizedBox(
                   height: 130,
                   width: 130,
                   child: ClipOval(
                     child: Image.asset(
-                      "assets/logo.png",
+                      "assets/logo.png.jpg",
                       fit: BoxFit.cover,
                     ),
                   ),
@@ -53,7 +53,7 @@ class WelcomeScreen extends StatelessWidget {
 
                 const SizedBox(height: 28),
 
-                // ✅ Sign In button
+                //  Sign In button
                 SizedBox(
                   width: double.infinity,
                   height: 50,
@@ -81,7 +81,7 @@ class WelcomeScreen extends StatelessWidget {
 
                 const SizedBox(height: 14),
 
-                // ✅ Sign Up outline
+                //  Sign Up outline
                 SizedBox(
                   width: double.infinity,
                   height: 50,

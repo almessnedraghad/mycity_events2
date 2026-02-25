@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+
 import 'login_screen.dart';
 
 class CompleteProfileScreen extends StatefulWidget {
@@ -24,65 +25,10 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController confirmPasswordController = TextEditingController();
 
-  String? certificate; // placeholder
+  // ✅ TEMP (no file_picker, no storage) just to keep UI working
+  String? certificateName;
 
-  // UI placeholder (لاحقاً نسوي رفع فعلي)
-  void uploadCertificate() {
-    setState(() {
-      certificate = "certificate.pdf"; // مؤقت فقط
-    });
-  }
-
-  Future<void> createAccount() async {
-    // basic checks
-    if (passwordController.text != confirmPasswordController.text) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Passwords do not match")),
-      );
-      return;
-    }
-
-    if (widget.role == "organizer" && certificate == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please upload certificate")),
-      );
-      return;
-    }
-
-    try {
-      final user = await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: widget.email,
-        password: passwordController.text,
-      );
-
-      await FirebaseFirestore.instance
-          .collection("users")
-          .doc(user.user!.uid)
-          .set({
-        "email": widget.email,
-        "name": nameController.text,
-        "role": widget.role,
-        "certificateUploaded": widget.role == "organizer",
-      });
-
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Account created")),
-      );
-
-      // رجّعيه للّوغن (بعدها نغيرها لهوم)
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-        (route) => false,
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: $e")),
-      );
-    }
-  }
+  bool isLoading = false;
 
   @override
   void dispose() {
@@ -90,6 +36,82 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
     passwordController.dispose();
     confirmPasswordController.dispose();
     super.dispose();
+  }
+
+  void uploadCertificateTemp() {
+    setState(() {
+      certificateName = "certificate (temp)";
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Upload disabled for web test الآن")),
+    );
+  }
+
+  Future<void> createAccount() async {
+    final isOrganizer = widget.role == "organizer";
+
+    if (nameController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please enter your name")),
+      );
+      return;
+    }
+
+    if (passwordController.text != confirmPasswordController.text) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Passwords do not match")),
+      );
+      return;
+    }
+
+    if (isOrganizer && certificateName == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please upload certificate")),
+      );
+      return;
+    }
+
+    setState(() => isLoading = true);
+
+    try {
+      final userCredential =
+          await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: widget.email,
+        password: passwordController.text,
+      );
+
+      await FirebaseFirestore.instance
+          .collection("users")
+          .doc(userCredential.user!.uid)
+          .set({
+        "email": widget.email,
+        "name": nameController.text.trim(),
+        "role": widget.role,
+        "certificateUploaded": isOrganizer,
+        "certificateName": certificateName, // temp
+        "createdAt": FieldValue.serverTimestamp(),
+      });
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Account created ✅")),
+      );
+
+      // مؤقتًا: يرجع للّوغن (بعدين نغيرها لهوم/صفحة بعد التسجيل)
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (route) => false,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: $e")),
+      );
+    } finally {
+      if (mounted) setState(() => isLoading = false);
+    }
   }
 
   Widget label(String t) =>
@@ -107,14 +129,13 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
         borderRadius: BorderRadius.circular(10),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 14),
-      child: Center(
-        child: TextField(
-          controller: c,
-          obscureText: obscure,
-          decoration: InputDecoration(
-            hintText: hint,
-            border: InputBorder.none,
-          ),
+      alignment: Alignment.centerLeft,
+      child: TextField(
+        controller: c,
+        obscureText: obscure,
+        decoration: InputDecoration(
+          hintText: hint,
+          border: InputBorder.none,
         ),
       ),
     );
@@ -157,8 +178,14 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child:
-                            Image.asset("assets/logo.png", fit: BoxFit.contain),
+                        child: Image.asset(
+                          "assets/logo.png",
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, __, ___) => const Icon(
+                            Icons.location_city,
+                            color: primaryColor,
+                          ),
+                        ),
                       ),
                       const SizedBox(width: 10),
                       const Text(
@@ -192,7 +219,8 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                     children: [
                       const Text(
                         "Complete Your Profile",
-                        style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
+                        style:
+                            TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
                       ),
                       const SizedBox(height: 6),
                       Text(
@@ -203,7 +231,6 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                       ),
                       const SizedBox(height: 18),
 
-                      // Email (readonly)
                       label("Email"),
                       const SizedBox(height: 8),
                       Container(
@@ -251,16 +278,16 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                           style: TextStyle(fontWeight: FontWeight.w600),
                         ),
                         const SizedBox(height: 8),
-
                         InkWell(
-                          onTap: uploadCertificate,
+                          onTap: uploadCertificateTemp,
                           child: Container(
                             height: 110,
                             width: double.infinity,
                             decoration: BoxDecoration(
                               color: const Color(0xFFFFF3E6),
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: const Color(0xFFFFD2AE)),
+                              border:
+                                  Border.all(color: const Color(0xFFFFD2AE)),
                             ),
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
@@ -274,9 +301,9 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  certificate == null
+                                  certificateName == null
                                       ? "PDF, JPG, PNG (Max 5MB)"
-                                      : "Uploaded: $certificate",
+                                      : "Selected: $certificateName",
                                   style: const TextStyle(
                                     color: Colors.black54,
                                     fontSize: 12,
@@ -302,10 +329,11 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                             ),
                             elevation: 0,
                           ),
-                          onPressed: createAccount,
-                          child: const Text(
-                            "Create Account",
-                            style: TextStyle(fontWeight: FontWeight.w600),
+                          onPressed: isLoading ? null : createAccount,
+                          child: Text(
+                            isLoading ? "Creating..." : "Create Account",
+                            style:
+                                const TextStyle(fontWeight: FontWeight.w600),
                           ),
                         ),
                       ),
