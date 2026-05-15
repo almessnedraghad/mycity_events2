@@ -7,6 +7,7 @@ class EventModel {
   final DateTime date;
   final String location;
   final String organizerId;
+  final String status;
 
   EventModel({
     required this.id,
@@ -15,6 +16,7 @@ class EventModel {
     required this.date,
     required this.location,
     required this.organizerId,
+    this.status = 'pending',
   });
 
   factory EventModel.fromFirestore(Map<String, dynamic> data, String id) {
@@ -25,6 +27,7 @@ class EventModel {
       date: data['date'].toDate(),
       location: data['location'],
       organizerId: data['organizerId'],
+      status: data['status'] ?? 'pending',
     );
   }
 
@@ -35,6 +38,7 @@ class EventModel {
       'date': date,
       'location': location,
       'organizerId': organizerId,
+      'status': 'pending',
       'createdAt': FieldValue.serverTimestamp(),
     };
   }

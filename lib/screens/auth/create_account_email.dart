@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'choose_role_screen.dart';
-
+import 'interests_screen.dart';
 class CreateAccountEmail extends StatefulWidget {
   const CreateAccountEmail({super.key});
 
@@ -72,7 +72,7 @@ class _CreateAccountEmailState extends State<CreateAccountEmail> {
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: Image.asset("assets/logo.png", fit: BoxFit.contain),
+                        child: Image.asset("assets/logo.png.jpg", fit: BoxFit.contain),
                       ),
                       const SizedBox(width: 10),
                       const Text(

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-
-import 'login_screen.dart';
+import 'interests_screen.dart';
+import 'login_screen.dart'; 
+import '../organizer/organizer_home.dart';
+import 'package:file_picker/file_picker.dart';
 
 class CompleteProfileScreen extends StatefulWidget {
   final String email;
@@ -25,7 +27,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController confirmPasswordController = TextEditingController();
 
-  // ✅ TEMP (no file_picker, no storage) just to keep UI working
+  //  TEMP (no file_picker, no storage) just to keep UI working
   String? certificateName;
 
   bool isLoading = false;
@@ -38,14 +40,30 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
     super.dispose();
   }
 
-  void uploadCertificateTemp() {
+  /*void uploadCertificateTemp() {
     setState(() {
       certificateName = "certificate (temp)";
     });
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text("Upload disabled for web test الآن")),
     );
+  }*/
+  Future<void> uploadCertificate() async {
+  final result = await FilePicker.platform.pickFiles(
+    type: FileType.custom,
+    allowedExtensions: ['pdf', 'jpg', 'png'],
+  );
+
+  if (result != null && result.files.single.name.isNotEmpty) {
+    setState(() {
+      certificateName = result.files.single.name;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Certificate selected ✅")),
+    );
   }
+}
 
   Future<void> createAccount() async {
     final isOrganizer = widget.role == "organizer";
@@ -81,29 +99,45 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
       );
 
       await FirebaseFirestore.instance
-          .collection("users")
-          .doc(userCredential.user!.uid)
-          .set({
-        "email": widget.email,
-        "name": nameController.text.trim(),
-        "role": widget.role,
-        "certificateUploaded": isOrganizer,
-        "certificateName": certificateName, // temp
-        "createdAt": FieldValue.serverTimestamp(),
-      });
+    .collection("users")
+    .doc(userCredential.user!.uid)
+    .set({
+  "email": widget.email,
+  "name": nameController.text.trim(),
+  "role": widget.role,
+
+  // organizer approval
+  "approvalStatus": isOrganizer ? "pending" : "approved",
+
+  "certificateUploaded": isOrganizer,
+  "certificateName": certificateName,
+  "createdAt": FieldValue.serverTimestamp(),
+});
 
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Account created ✅")),
       );
+if (widget.role == "organizer") {
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(
+      content: Text("Your organizer account is pending admin approval"),
+    ),
+  );
 
-      // مؤقتًا: يرجع للّوغن (بعدين نغيرها لهوم/صفحة بعد التسجيل)
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-        (route) => false,
-      );
+  Navigator.pushAndRemoveUntil(
+    context,
+    MaterialPageRoute(builder: (_) => const LoginScreen()),
+    (route) => false,
+  );
+} else {
+  Navigator.pushAndRemoveUntil(
+    context,
+    MaterialPageRoute(builder: (_) => const InterestsScreen()),
+    (route) => false,
+  );
+}
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -179,7 +213,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Image.asset(
-                          "assets/logo.png",
+                          "assets/logo.png.jpg",
                           fit: BoxFit.contain,
                           errorBuilder: (_, __, ___) => const Icon(
                             Icons.location_city,
@@ -279,7 +313,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                         ),
                         const SizedBox(height: 8),
                         InkWell(
-                          onTap: uploadCertificateTemp,
+                          onTap: uploadCertificate,
                           child: Container(
                             height: 110,
                             width: double.infinity,

@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
-class EventDetailsScreen extends StatelessWidget {
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '/services/reminder_service.dart';
+import 'dart:async';
+class EventDetailsScreen extends StatefulWidget {
   // نستقبل بيانات الحدث من صفحة الليست
   final Map<String, dynamic> event;
 
@@ -9,7 +13,142 @@ class EventDetailsScreen extends StatelessWidget {
     required this.event,
   });
 
-  static const Color primaryColor = Color(0xFFFF6A00);
+
+  @override
+      State<EventDetailsScreen> createState() => _EventDetailsScreenState();
+      }
+
+      class _EventDetailsScreenState extends State<EventDetailsScreen> {
+        bool isFavorite = false;
+        StreamSubscription? favSub;
+        
+        static const Color primaryColor = Color(0xFFFF6A00);
+        
+      @override
+        void initState() {
+        super.initState();
+        listenToFavorite();
+        increaseViews();
+      }
+
+       //  نتحقق إذا كان الحدث موجود في اهتمامات المستخدم عشان نعرض الايقونة المناسبة
+       void listenToFavorite() {
+  final user = FirebaseAuth.instance.currentUser;
+  if (user == null) return;
+
+  favSub = FirebaseFirestore.instance
+      .collection("users")
+      .doc(user.uid)
+      .snapshots()
+      .listen((doc) {
+
+    final data = doc.data();
+ 
+    List<String> interests = List<String>.from(
+    data?["interestedEvents"] ?? []
+);
+
+    setState(() {
+      isFavorite = interests.contains(widget.event["id"]);
+    });
+
+  });
+}
+Future<void> increaseViews() async {
+  final eventId = widget.event["id"];
+
+  await FirebaseFirestore.instance
+      .collection("events")
+      .doc(eventId)
+      .update({
+    "views": FieldValue.increment(1),
+  });
+}
+Future<void> toggleFavorite() async {
+  final user = FirebaseAuth.instance.currentUser;
+  if (user == null) return;
+
+  final eventId = widget.event["id"];
+
+  // مرجع الحدث
+  final eventRef = FirebaseFirestore.instance
+      .collection("events")
+      .doc(eventId);
+
+  if (isFavorite) {
+    // REMOVE
+    await FirebaseFirestore.instance
+        .collection("users")
+        .doc(user.uid)
+        .update({
+      "interestedEvents": FieldValue.arrayRemove([eventId])
+    });
+
+    // نقص الانترست
+    await eventRef.update({
+      "interestedCount": FieldValue.increment(-1),
+    });
+
+  } else {
+    // ADD
+    await FirebaseFirestore.instance
+        .collection("users")
+        .doc(user.uid)
+        .update({
+      "interestedEvents": FieldValue.arrayUnion([eventId])
+    });
+
+    // زيد الانترست
+    await eventRef.update({
+      "interestedCount": FieldValue.increment(1),
+    });
+
+    ReminderService.addReminder(
+      title: widget.event["title"],
+      date: widget.event["date"],
+      time: widget.event["time"],
+    );
+  }
+}
+        //  لما المستخدم يضغط على الايقونة، نضيف او نشيل الحدث من اهتمامات المستخدم في الفايرستور
+        /*Future<void> toggleFavorite() async {
+                  final user = FirebaseAuth.instance.currentUser;
+                  if (user == null) return;
+
+                  final eventId = widget.event["id"];
+
+                  if (!isFavorite) {
+                    await FirebaseFirestore.instance
+                        .collection("users")
+                        .doc(user.uid)
+                        .update({
+                      "interestedEvents": FieldValue.arrayRemove([eventId])
+                    });
+                  } else {
+                    await FirebaseFirestore.instance
+                        .collection("users")
+                        .doc(user.uid)
+                        .update({
+                      "interestedEvents": FieldValue.arrayUnion([eventId])
+                    });
+                  }
+
+                   
+                    if (isFavorite) {
+                        ReminderService.addReminder(
+                          title: widget.event["title"],
+                          date: widget.event["date"],
+                          time: widget.event["time"],
+                        );
+                      }
+                  }
+                  @override
+                  void dispose() {
+                    favSub?.cancel(); 
+                    super.dispose();
+                  }*/
+
+ // static const Color primaryColor = Color(0xFFFF6A00);
   //الرابط يوديك وي بوك
   Future<void> openWeBook() async {
     final Uri url = Uri.parse("https://webook.com");
@@ -20,16 +159,16 @@ class EventDetailsScreen extends StatelessWidget {
 }
   @override
   Widget build(BuildContext context) {
-    final String title = event["title"] ?? "";
-    final String category = event["category"] ?? "";
-    final String date = event["date"] ?? "";
-    final String time = event["time"] ?? "";
-    final String location = event["location"] ?? "";
-    final String organizer = event["organizer"] ?? "ُEvent Organizer";
-    final String about = event["about"] ??
+    final String title = widget.event["title"] ?? "";
+    final String category = widget.event["category"] ?? "";
+    final String date = widget.event["date"] ?? "";
+    final String time = widget.event["time"] ?? "";
+    final String location = widget.event["location"] ?? "";
+    final String organizer = widget.event["organizer"] ?? "Event Organizer";
+    final String about = widget.event["about"] ??
         "No description yet. Later we will load it from Firebase.";
-    final String imagePath = event["image"] ?? "assets/event_placeholder.jpg";
-
+    final String imagePath = widget.event["image"] ?? "assets/event_placeholder.jpg";
+    
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -45,7 +184,7 @@ class EventDetailsScreen extends StatelessWidget {
                     borderRadius: const BorderRadius.vertical(
                       bottom: Radius.circular(18),
                     ),
-                    child: Image.asset(
+                    child: Image.network(
                       imagePath,
                       fit: BoxFit.cover,
                       errorBuilder: (_, __, ___) => Image.asset(
@@ -76,8 +215,11 @@ class EventDetailsScreen extends StatelessWidget {
                   child: CircleAvatar(
                     backgroundColor: Colors.white,
                     child: IconButton(
-                      icon: const Icon(Icons.favorite_border),
-                      onPressed: () {},
+                      icon: Icon(
+                              isFavorite ? Icons.favorite : Icons.favorite_border,
+                              color: isFavorite ? Colors.red : Colors.black,
+                            ),
+                      onPressed: toggleFavorite,
                     ),
                   ),
                 ),
